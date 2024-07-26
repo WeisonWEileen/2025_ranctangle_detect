@@ -6,9 +6,12 @@
 int lowH = 0, lowS = 0, lowV = 0;
 int highH = 180, highS = 255, highV = 255;
 
-// 一次测试比较好的参数
+
 
 #define HEIGHT 480
+#define EPSILON_RATIO 0.05 //目前这个参数表现良好
+#define MIN_AREA_RATIO 0.1  //目前这个参数表现良好
+int ROI [] {150,150,300,180};
 
 // 回调函数，用于Trackbar的更新
 void on_low_H_thresh_trackbar(int, void *) {}
@@ -67,14 +70,7 @@ int main(int argc, char *argv[])
     cap.set(cv::CAP_PROP_AUTO_EXPOSURE, 1.0); // 再关闭自动曝光
     cap.set(cv::CAP_PROP_EXPOSURE, exposure); // 最后设置曝光参数
 
-    // // auto exposure
-    // bool success = cap.set(cv::CAP_PROP_AUTO_EXPOSURE, 3);
-    // if (!success)
-    // {
-    //     std::cout << "无法设置自动曝光" << std::endl;
-    //     return -1;
-    // }
-
+  
     // 设置图像的高度
     bool success2 = cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
     if (!success2)
@@ -112,6 +108,9 @@ int main(int argc, char *argv[])
     double font_scale = 1;
     int thickness = 2;
 
+
+    int MIN_AREA = int( MIN_AREA_RATIO * (ROI[2] - ROI[0]) * (ROI[3] - ROI[1]));
+
     // cv::SimpleBlobDetector blob_detector;
     while (true)
     {
@@ -125,7 +124,7 @@ int main(int argc, char *argv[])
         }
 
         // select the ROI region 
-        cv::Rect roi(150,150,300,180);
+        cv::Rect roi(ROI[0],ROI[1],ROI[2],ROI[3]);
         cv::Mat frame = frame_raw(roi);
 
         // smooth the image
@@ -161,14 +160,34 @@ int main(int argc, char *argv[])
         std::vector<cv::Vec4i> hierarchy;
         cv::findContours(binary_image, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
 
+        //  to store those coutours that matches rectangle
+        std::map<int, std::vector<cv::Point>> ret;
 
-        // 画出轮廓
+        // approxPolyDP
+        std::vector<std::vector<cv::Point>> approx_contours(contours.size());
+        for(size_t i = 0; i < contours.size(); i++)
+        {
+            if(cv::contourArea(contours[i]) >= MIN_AREA) {
+                double epsilon = EPSILON_RATIO * cv::arcLength(contours[i], true);
+                cv::approxPolyDP(contours[i], approx_contours[i], epsilon, true);
+                std::cout << "poly size: " <<approx_contours[i].size() << std::endl;
+                
+                // fully draw
+                // cv::drawContours(frame,  approx_contours, (int) i, cv::Scalar(0, 255, 0), 2);
+                
+            }
+        }
+
+
+        // draw the contours
         cv::Mat drawing = cv::Mat::zeros(binary_image.size(), CV_8UC3);
         for (size_t i = std::max(0, static_cast<int>(contours.size()) - 2); i < contours.size(); i++)
         {
             cv::Scalar color = cv::Scalar(0, 255, 0);
             cv::drawContours(drawing, contours, (int)i, color, 2, cv::LINE_8, hierarchy, 0);
         }
+
+
 
         // std::cout << contours << s
 

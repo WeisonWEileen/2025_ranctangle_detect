@@ -21,6 +21,18 @@ double exposure = std::stod(argv[2]);
 bool success4 = cap.set(cv::CAP_PROP_EXPOSURE, exposure);
 ```
 
+设置回自动曝光
+```
+// manual exposure
+cap.set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25);
+double exposure = std::stod(argv[2]);
+bool success4 = cap.set(cv::CAP_PROP_EXPOSURE, exposure);
+if (!success4) {
+    std::cout << "无法设置曝光值" << std::endl;
+    return -1;
+}
+```
+
 ### 第0版本demo
 hsv阈值基本没有使用,仅仅使用阈值进行边缘检测效果
 
