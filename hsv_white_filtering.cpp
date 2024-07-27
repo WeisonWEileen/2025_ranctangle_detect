@@ -1,6 +1,7 @@
 #include <iostream>
 #include <opencv2/features2d.hpp>
 #include <opencv2/opencv.hpp>
+#include <map>
 
 // 初始化HSV阈值的上下限
 int lowH = 0, lowS = 0, lowV = 0;
@@ -20,6 +21,58 @@ void on_low_S_thresh_trackbar(int, void *) {}
 void on_high_S_thresh_trackbar(int, void *) {}
 void on_low_V_thresh_trackbar(int, void *) {}
 void on_high_V_thresh_trackbar(int, void *) {}
+
+std::pair<std::vector<cv::Point>, std::vector<cv::Point>> findBox(cv::Mat& img_bin, cv::Mat& frame) {
+    if (img_bin.empty()) {
+        std::cout << "img_bin cannot be empty" << std::endl;
+        throw std::invalid_argument("img_bin cannot be empty");
+    }
+
+    int min_area = EPSILON_RATIO * img_bin.total();
+
+    std::map<int, std::vector<cv::Point>> ret;
+    std::vector<std::vector<cv::Point>> contours;
+    std::vector<cv::Vec4i> hierarchy;
+
+    cv::findContours(img_bin, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+
+    if (contours.empty()) {
+        return std::make_pair(std::vector<cv::Point>(), std::vector<cv::Point>());
+    }
+
+    for (size_t i = 0; i < contours.size(); i++) {
+        if (cv::contourArea(contours[i]) >= min_area) {
+            double epsilon = EPSILON_RATIO * cv::arcLength(contours[i], true);
+            std::vector<cv::Point> approx;
+            cv::approxPolyDP(contours[i], approx, epsilon, true);
+
+            // to fully draw and print the contours of the code 
+            // cv::approxPolyDP(contours[i], approx_contours[i], epsilon, true);
+            // std::cout << "poly size: " << approx_contours[i]
+            // .size() << std::endl;
+            // cv::drawContours(frame,  approx_contours, (int) i, cv::Scalar(0, 255, 0), 2);
+
+            if (approx.size() == 4) {
+                ret[i] = approx;
+            }
+        }
+    }
+
+    for (size_t i = 0; i < contours.size(); i++) {
+        if (ret.count(i) && ret[i].size() == 4 && hierarchy[i][3] != -1 && ret.count(hierarchy[i][3]) && ret[hierarchy[i][3]].size() == 4 && hierarchy[i][2] == -1) {
+            if (!frame.empty()) {
+                cv::drawContours(frame, contours, i, cv::Scalar(0, 0, 255), 2);
+                cv::drawContours(frame, contours, hierarchy[i][3], cv::Scalar(0, 0, 255), 2);
+                cv::polylines(frame, ret[i], true, cv::Scalar(0, 255, 255), 10);
+                cv::polylines(frame, ret[hierarchy[i][3]], true, cv::Scalar(0, 255, 255), 10);
+            }
+
+            return std::make_pair(ret[hierarchy[i][3]], ret[i]);
+        }
+    }
+
+    return std::make_pair(std::vector<cv::Point>(), std::vector<cv::Point>());
+}
 
 int main(int argc, char *argv[])
 {
@@ -155,37 +208,15 @@ int main(int argc, char *argv[])
         
         cv::threshold(binary_image, binary_image, 120, 255, cv::THRESH_BINARY);
 
-        // 找到轮廓
-        std::vector<std::vector<cv::Point>> contours;
-        std::vector<cv::Vec4i> hierarchy;
-        cv::findContours(binary_image, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
-
-        //  to store those coutours that matches rectangle
-        std::map<int, std::vector<cv::Point>> ret;
-
-        // approxPolyDP
-        std::vector<std::vector<cv::Point>> approx_contours(contours.size());
-        for(size_t i = 0; i < contours.size(); i++)
-        {
-            if(cv::contourArea(contours[i]) >= MIN_AREA) {
-                double epsilon = EPSILON_RATIO * cv::arcLength(contours[i], true);
-                cv::approxPolyDP(contours[i], approx_contours[i], epsilon, true);
-                std::cout << "poly size: " <<approx_contours[i].size() << std::endl;
-                
-                // fully draw
-                // cv::drawContours(frame,  approx_contours, (int) i, cv::Scalar(0, 255, 0), 2);
-                
-            }
-        }
-
-
-        // draw the contours
+        auto boxex = findBox(binary_image, fram        // draw the contours
         cv::Mat drawing = cv::Mat::zeros(binary_image.size(), CV_8UC3);
         for (size_t i = std::max(0, static_cast<int>(contours.size()) - 2); i < contours.size(); i++)
         {
             cv::Scalar color = cv::Scalar(0, 255, 0);
             cv::drawContours(drawing, contours, (int)i, color, 2, cv::LINE_8, hierarchy, 0);
-        }
+        }e);
+
+
 
 
 
@@ -195,7 +226,6 @@ int main(int argc, char *argv[])
         
         cv::imshow("Binary Image", binary_image);
         cv::imshow("Original Image", frame);
-        cv::imshow("draw counters", drawing);
 
         // 按下Esc键退出循环
         char key = (char)cv::waitKey(30);
