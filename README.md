@@ -1,3 +1,10 @@
+新代码见rectangle.py 识别图片和rectangle2.py从摄像头读取内容。
+
+
+
+
+
+
 ### 运行程序
 ```
 ./HSV_Filter /dev/video0 230
