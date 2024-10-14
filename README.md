@@ -1,3 +1,8 @@
+rectangle.py 照片矩形识别（暂时的）
+rectangle2.py 视频矩形识别（暂时的）
+其他用于测试 
+
+
 ### 运行程序
 ```
 ./HSV_Filter /dev/video0 230
